@@ -2,10 +2,17 @@ import discord
 from discord.ext import commands
 import os, sqlite3, youtube_dl
 import ffmpeg
+import asyncio
+import functools
+import itertools
+import math
+import random
 
 Alice = commands.Bot(command_prefix='.', Intents=discord.Intents.all())
 Alice.remove_command('help')
-bad_words = ['шлюха','хуй','пенис','hui']
+bad_words = ['шлюха','хуй','пенис','hui','бля','блядский','впиздячил','выблядок','наблядовал','ебать','выебывается','выебываеться','доебался','доебаться','ебало','ебло','ебанул','ебанулся','поебался','ебашит','заебал','заебись','наебашился','наебнулся','козлоеб','поебень','уебался','уебище','хитровыебанный','пизда','пиздабол','пиздатый','пиздец','подпиздывает','спиздил','хуево','хуйня','негр','гандон','долбоеб','трахнул','отимел']
+
+youtube_dl.utils.bug_reports_message = lambda: ''
 
 
 "Ивент который заработает в момент готовности бота"
@@ -35,7 +42,7 @@ async def info (ctx , st = None):
         embed.add_field(name="Информация о авторе", value=".info author", inline=False)
         embed.add_field(name="Информация о боте", value=".info bot", inline=False)
         embed.add_field(name="Информация о правилах использования", value=".info rules", inline=False)
-        ember.add_field(name="Информация о Исходном коде бота", value=".info Git", inline=False)
+        embed.add_field(name="Информация о Исходном коде бота", value=".info Git", inline=False)
         embed.set_footer(text="Alice 2022")
         await ctx.send(embed=embed)
     if st == 'develop':
@@ -135,6 +142,10 @@ async def on_message(message):
     msg = message.content.lower()
     if msg in bad_words:
         await message.delete()
+    if message.content.startswith("!Suggest"):
+        await message.add_reaction("✅")
+        await message.add_reaction("❌")
+    
 
 domains: ['https://www.youtube.com/', 'http://www.youtube.com/', 'https://youtu.be/', 'http://youtu.be/']
 async def check_domains(link):
@@ -143,7 +154,7 @@ async def check_domains(link):
             return Turn
     return False
 
-"Комманда для проигрывания музыки"
+#Комманда для проигрывания музыки
 @Alice.command()
 async def play(ctx, *, command = None):
     await ctx.channel.purge( limit = 1 )
@@ -189,10 +200,10 @@ async def play(ctx, *, command = None):
         if not check_domains(sourse):
             await ctx.channel.send(f'{author.mention}, Твоя ссылка не разрешена для использования напиши Wolfrik#8341!')
             return
-        song_there = os.path.isfile('music/song.mp3')
+        song_there = os.path.isfile('song.mp3')
         try:
             if song_there:
-                os.remove('music/song.mp3')
+                os.remove('song.mp3')
         except PermissionError:
             await ctx.channel.send('Недостаточно прав для удаления файла!')
             return
@@ -217,26 +228,95 @@ async def play(ctx, *, command = None):
     else:
         voice.play(discord.FFmpegPCMAudio(f'music/{sourse}'))
 
-"комманда для разработки бота"
+#комманда для разработки бота
 @Alice.command()
-@commands.has_permissions( administrator = True)
+@commands.has_permissions( administrator = True )
 async def ctx( ctx ):
     print(ctx)
     
-"комманда для помощи по коммандам"
+#комманда для помощи по коммандам
 @Alice.command()
 async def help(ctx, listcommand = None):
     embed=discord.Embed(title="Мои комманды", description="для использования подробности о комманде или странице используйте .help <Комманда или страница>", color=0x7f7f7f)
-    embed.set_author(name="Alice", icon_url="https://i.ytimg.com/vi/pl8Fh9dK_54/sddefault.jpg")
     embed.add_field(name=".help", value="Комманда для списка всех комманд", inline=False)
     embed.add_field(name=".ban", value="Комманда для бана пользователя", inline=False)
     embed.add_field(name=".kick", value="Комманда для кика пользователя", inline=False)
     embed.add_field(name=".clear", value="Комманда для очистки чата", inline=False)
     embed.add_field(name=".mute", value="Комманда для мута пользователя", inline=False)
     embed.add_field(name=".play", value="Комманда для проигрывания музыки", inline=False)
-    embed.add_field(name="tempmute", value="Комманда для временного мута пользователя", inline=False)
+    embed.add_field(name=".tempmute", value="Комманда для временного мута пользователя", inline=False)
+    embed.add_field(name=".embed", value="embed <""Название""> <""Описание""> <Ссылка на картинку>")
     embed.set_footer(text="Alice 2022")
     await ctx.send(embed=embed)
     
+@Alice.command()
+@commands.has_permissions( administrator = True )
+async def embed( ctx, code):
+    await ctx.channel.purge( limit=1)
+    await ctx.send(embed=code)
+    #else
     
-Alice.run(os.getenv('TOKEN'))
+@Alice.command()
+async def leave(ctx):
+    await ctx.channel.purge( limit=1)
+    global server, name_channel
+    voice = discord.utils.get(Alice.voice_clients, guild=server)
+    if voice.is_connected():
+        await voice.disconnect()
+    else:
+        embed=discord.Embed(title="Я не подключена!", description="Ошибка,я не подключена к голосовому каналу будь внемателен!")
+        embed.set_author(name="Alice", icon_url="https://i.ytimg.com/vi/pl8Fh9dK_54/sddefault.jpg")
+        embed.set_footer(text="Alice 2022")
+        await ctx.channel.send(embed=embed)
+        
+@Alice.command()
+async def pause(ctx):
+    await ctx.channel.purge( limit=1)
+    voice = discord.utils.get(Alice.voice_clients, guild=server)
+    if voice.is_playing():
+        voice.pause()
+    else:
+        embed=discord.Embed(title="Я и так не проигриваю музыку!", description="Ошибка,я не проигрываю музыку!")
+        embed.set_author(name="Alice", icon_url="https://i.ytimg.com/vi/pl8Fh9dK_54/sddefault.jpg")
+        embed.set_footer(text="Alice 2022")
+        await ctx.channel.send(embed=embed)
+    
+@Alice.command()
+async def resume(ctx):
+    await ctx.channel.purge( limit=1)
+    voice = discord.utils.get(Alice.voice_clients, guild=server)
+    if voice.is_paused():
+        voice.resume()
+    else:
+        embed=discord.Embed(title="Я не могу продолжить прослушивание!", description="Ошибка,я не могу продолжить по причине того что я и так проигрываю или не играю музыку!")
+        embed.set_author(name="Alice", icon_url="https://i.ytimg.com/vi/pl8Fh9dK_54/sddefault.jpg")
+        embed.set_footer(text="Alice 2022")
+        await ctx.channel.send(embed=embed)
+        
+@Alice.command()
+async def stop(ctx):
+    voice = discord.utils.get(bot.voice_clients, guild=server)
+    voice.stop()
+    
+@Alice.command()
+async def skip(ctx):
+    await ctx.channel.purge( limit=1)
+    voice = discord.utils.get(bot.voice_clients, guild=server)
+    if voice.is_playing():
+        voice.skip()
+    else:
+        embed=discord.Embed(title="Я не могу пропустить проигрывание!", description="Ошибка,я не могу пропустить проигрывание по причине того что я не играю музыку!")
+        embed.set_author(name="Alice", icon_url="https://i.ytimg.com/vi/pl8Fh9dK_54/sddefault.jpg")
+        embed.set_footer(text="Alice 2022")
+        await ctx.channel.send(embed=embed)
+        
+@Alice.command()
+async def volume(ctx, volume_arg):
+    await ctx.channel.purge( limit=1)
+    if voice.is_playing():
+        voice.sourse.volume(volume_arg)
+    else:
+        return
+
+    
+Alice.run('OTU0NzQwOTE5MDc1MjA5MjQ2.Gzw50x.EymPQn3nabQs70K-K_q_aPN3lX5C1g3HJTlB-A')
