@@ -319,4 +319,4 @@ async def volume(ctx, volume_arg):
         return
 
     
-Alice.run('OTU0NzQwOTE5MDc1MjA5MjQ2.Gzw50x.EymPQn3nabQs70K-K_q_aPN3lX5C1g3HJTlB-A')
+Alice.run('')
